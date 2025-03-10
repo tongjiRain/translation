@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>平移的世界（单位长度版）</title>
+    <style>
+        body {
+            background-color: #749ebb;
+            margin: 0;
+            padding: 20px;
+            font-family: '微软雅黑', 'Arial', sans-serif;
+            min-width: 1000px;
+        }
+
+        h1 {
+            text-align: center;
+            color: #2c3e50;
+            font-size: 3em;
+            margin: 30px 0;
+            position: relative;
+            letter-spacing: 3px;
+        }
+
+        h1::before, h1::after {
+            content: '';
+            position: absolute;
+            width: 45px;
+            height: 45px;
+            top: 50%;
+            transform: translateY(-50%);
+            background-color: #3498db;
+        }
+
+        h1::before {
+            left: 24%;
+            clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%);
+        }
+
+        h1::after {
+            right: 24%;
+            clip-path: circle(50% at 50% 50%);
+        }
+
+        .controls-container {
+            max-width: 900px;
+            margin: 20px auto;
+            padding: 25px;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+
+        .control-group {
+            margin: 20px 0;
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .control-label {
+            min-width: 100px;
+            font-weight: bold;
+            color: #34495e;
+            font-size: 16px;
+        }
+
+        input, select, button {
+            padding: 10px 15px;
+            border: 2px solid #bdc3c7;
+            border-radius: 8px;
+            font-size: 15px;
+            transition: all 0.3s;
+        }
+
+        input:focus, select:focus {
+            border-color: #3498db;
+            outline: none;
+        }
+
+        button {
+            background-color: #3498db;
+            color: white;
+            cursor: pointer;
+            min-width: 120px;
+            border: none;
+        }
+
+        button:hover {
+            background-color: #2980b9;
+            transform: translateY(-2px);
+        }
+
+        #canvas {
+            display: block;
+            margin: 30px auto;
+            border: 3px solid #2c3e50;
+            background: white;
+            border-radius: 10px;
+        }
+
+        .data-table {
+            position: fixed;
+            right: 30px;
+            bottom: 30px;
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            max-width: 350px;
+            display: none;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+
+        th, td {
+            padding: 12px;
+            border: 1px solid #ddd;
+            text-align: center;
+        }
+
+        th {
+            background-color: #9bbee2;
+        }
+
+        /* 背景粒子效果 */
+        .particles {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            overflow: hidden;
+        }
+
+        .particle {
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            background-color: rgba(255, 255, 255, 0.8);
+            border-radius: 50%;
+            animation: moveParticles 5s infinite linear;
+        }
+
+        @keyframes moveParticles {
+            0% { transform: translate(0, 0); }
+            100% { transform: translate(400px, 600px); }
+        }
+    </style>
+</head>
+<body>
+    <h1>平移的世界</h1>
+    
+      <!-- 背景粒子效果 -->
+    <div class="particles"></div>
+
+    <script>
+        // 动态生成粒子效果
+        const particleCount = 50;
+        const particlesContainer = document.querySelector('.particles');
+
+        for (let i = 0; i < particleCount; i++) {
+            const particle = document.createElement('div');
+            particle.classList.add('particle');
+            particlesContainer.appendChild(particle);
+
+            // 随机生成粒子的初始位置和动画
+            const x = Math.random() * window.innerWidth;
+            const y = Math.random() * window.innerHeight;
+            const size = Math.random() * 5 + 5; // 粒子大小
+            const animationDuration = Math.random() * 5 + 5; // 动画时长
+
+            particle.style.left = `${x}px`;
+            particle.style.top = `${y}px`;
+            particle.style.width = `${size}px`;
+            particle.style.height = `${size}px`;
+            particle.style.animationDuration = `${animationDuration}s`;
+        }
+    </script>
+    <div class="controls-container">
+        <div class="control-group">
+            <span class="control-label">正多边形边数：</span>
+            <input type="number" id="sides" min="3" max="10" value="5">
+            
+            <span class="control-label">边长（单位）：</span>
+            <input type="number" id="sideLength" min="1" max="20" value="5">
+            
+            <button onclick="createPolygon()">生成初始图形</button>
+        </div>
+
+        <div class="control-group">
+            <span class="control-label">平移方向：</span>
+            <select id="direction">
+                <option value="NE">北偏东</option>
+                <option value="NW">北偏西</option>
+                <option value="SE">南偏东</option>
+                <option value="SW">南偏西</option>
+            </select>
+
+            <span class="control-label">偏转角度：</span>
+            <input type="number" id="angle" min="0" max="90" value="45" placeholder="角度（°）">
+
+            <span class="control-label">平移距离（单位）：</span>
+            <input type="number" id="distance" min="1" max="100" value="5">
+        </div>
+
+        <div class="control-group">
+            <button onclick="startTranslate()">执行平移</button>
+            <button onclick="showData()">显示数据</button>
+            <button onclick="clearAll()">重置清空</button>
+        </div>
+    </div>
+
+    <canvas id="canvas" width="900" height="550"></canvas>
+    <div id="dataTable" class="data-table"></div>
+
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        let originalPoly = [];
+        let translatedPoly = [];
+        const unitLength = 18; // 1单位=10像素
+
+        window.onload = createPolygon;
+
+        function createPolygon() {
+            const sides = parseInt(document.getElementById('sides').value);
+            const lengthUnits = parseInt(document.getElementById('sideLength').value);
+            originalPoly = [];
+            
+            const sideLength = lengthUnits * unitLength;
+            const radius = sideLength / (2 * Math.sin(Math.PI / sides));
+            const centerX = canvas.width/2;
+            const centerY = canvas.height/2;
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            for(let i = 0; i < sides; i++) {
+                const angle = (i * 2 * Math.PI / sides) - Math.PI/2;
+                originalPoly.push({
+                    x: centerX + radius * Math.cos(angle),
+                    y: centerY + radius * Math.sin(angle)
+                });
+            }
+            drawOriginalPolygon();
+        }
+
+        function drawOriginalPolygon() {
+            ctx.beginPath();
+            ctx.moveTo(originalPoly[0].x, originalPoly[0].y);
+            originalPoly.forEach(p => ctx.lineTo(p.x, p.y));
+            ctx.closePath();
+
+            ctx.fillStyle = '#8e44ad80';
+            ctx.fill();
+            ctx.strokeStyle = '#2c3e50';
+            ctx.lineWidth = 3;
+            ctx.stroke();
+
+            originalPoly.forEach((p, i) => {
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, 5, 0, Math.PI*2);
+                ctx.fillStyle = '#e74c3c';
+                ctx.fill();
+                ctx.fillStyle = 'black';
+                ctx.fillText(i+1, p.x+10, p.y+5);
+            });
+        }
+
+        function startTranslate() {
+            const direction = document.getElementById('direction').value;
+            const angle = parseFloat(document.getElementById('angle').value);
+            const distance = parseFloat(document.getElementById('distance').value) * unitLength;
+
+
+           // 修正方向计算逻辑
+           /***
+            let totalAngle = 0;
+            switch(direction) {
+                case 'NE': // 北偏东 (90° - 输入角度)
+                    totalAngle = (90 - angle) * Math.PI / 180;
+                    break;
+                case 'NW': // 北偏西 (90° + 输入角度)
+                    totalAngle = (90 + angle) * Math.PI / 180;
+                    break;
+                case 'SE': // 南偏东 (270° - 输入角度)
+                    totalAngle = (270 - angle) * Math.PI / 180;
+                    break;
+                case 'SW': // 南偏西 (270° + 输入角度)
+                    totalAngle = (270 + angle) * Math.PI / 180;
+                    break;
+            }
+            ***/
+
+            let totalAngle = 0;
+            switch(direction) {
+                case 'SE': // 北偏东 (90° - 输入角度)
+                    totalAngle = (90 - angle) * Math.PI / 180;
+                    break;
+                case 'SW': // 北偏西 (90° + 输入角度)
+                    totalAngle = (90 + angle) * Math.PI / 180;
+                    break;
+                case 'NW': // 南偏东 (270° - 输入角度)
+                    totalAngle = (270 - angle) * Math.PI / 180;
+                    break;
+                case 'NE': // 南偏西 (270° + 输入角度)
+                    totalAngle = (270 + angle) * Math.PI / 180;
+                    break;
+            }
+
+            translatedPoly = originalPoly.map(p => ({
+                x: p.x + Math.cos(totalAngle) * distance,
+                y: p.y + Math.sin(totalAngle) * distance
+            }));
+            
+
+            animateTranslation();
+        }
+
+        function animateTranslation() {
+            let progress = 0;
+            const steps = 30;
+            
+            const animateFrame = () => {
+                if(progress > steps) return;
+                
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                drawOriginalPolygon();
+
+                const currentPoints = originalPoly.map((p, i) => ({
+                    x: p.x + (translatedPoly[i].x - p.x) * (progress/steps),
+                    y: p.y + (translatedPoly[i].y - p.y) * (progress/steps)
+                }));
+
+                ctx.beginPath();
+                ctx.moveTo(currentPoints[0].x, currentPoints[0].y);
+                currentPoints.forEach(p => ctx.lineTo(p.x, p.y));
+                ctx.closePath();
+                
+                ctx.fillStyle = '#e67e2280';
+                ctx.fill();
+                ctx.strokeStyle = '#c0392b';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+
+                progress++;
+                requestAnimationFrame(animateFrame);
+            }
+            animateFrame();
+        }
+
+        function showData() {
+            const table = document.getElementById('dataTable');
+            let html = `<h3>图形数据对比（单位长度）</h3><table>
+                <tr><th>边号</th><th>原长度</th><th>平移后长度</th><th>内角</th></tr>`;
+
+            for(let i = 0; i < originalPoly.length; i++) {
+                const p1 = originalPoly[i];
+                const p2 = originalPoly[(i+1)%originalPoly.length];
+                const t1 = translatedPoly[i] || p1;
+                const t2 = translatedPoly[(i+1)%originalPoly.length] || p2;
+
+                const origLen = (Math.hypot(p2.x-p1.x, p2.y-p1.y)/unitLength).toFixed(1);
+                const transLen = (Math.hypot(t2.x-t1.x, t2.y-t1.y)/unitLength).toFixed(1);
+                const angle = ((originalPoly.length-2)*180/originalPoly.length).toFixed(1)+"°";
+
+                html += `<tr>
+                    <td>${i+1}</td>
+                    <td>${origLen}</td>
+                    <td>${transLen}</td>
+                    <td>${angle}</td>
+                </tr>`;
+            }
+            html += '</table>';
+            table.innerHTML = html;
+            table.style.display = 'block';
+        }
+
+        function clearAll() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            originalPoly = [];
+            translatedPoly = [];
+            document.getElementById('dataTable').style.display = 'none';
+            document.getElementById('sides').value = 5;
+            document.getElementById('sideLength').value = 5;
+            document.getElementById('direction').value = 'NE';
+            document.getElementById('angle').value = 45;
+            document.getElementById('distance').value = 5;
+        }
+    </script>
+</body>
+</html>
